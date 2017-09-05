@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>UserStoryPrinter</title>
+
+    <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define('CustomApp', {
+	extend: 'Rally.app.App',      
+	requires: [
+		'Rally.data.wsapi.Store',
+		'Rally.app.plugin.Print'
+	],
+	plugins: [{
+		ptype: 'rallyappprinting'
+	}],
+	componentCls: 'printcards',
+	items: [      
+    	{
+        	xtype: 'container', 
+        	itemId: 'pulldown-container',
+        	layout: {
+                type: 'vbox',          
+                align: 'stretch'
+            }
+      	},
+    	{
+        	xtype: 'container', 
+        	itemId: 'textfield-container',
+        	layout: {
+                type: 'hbox',           
+                align: 'stretch'
+            }
+      	},
+    	{
+        	xtype: 'container', 
+        	itemId: 'button-container'
+      	}
+    ],
+	
+	selectedRelease: undefined,
+	featureStore: undefined,
+	featureComboBox: undefined,
+	storyStore: undefined,
+	selectedFeature: undefined,
+	storyGrid: undefined,
+	storyNameFilterTextField: undefined,
+	setFilterButton: undefined,
+
+	launch: function() {
+    	var me = this;                     // convention to hold a reference to the 'app' itself; reduce confusion of 'this' all over the place; when you see 'me' it means the 'app'
+		
+		var releaseComboBox = {
+			xtype: 'rallyreleasecombobox',
+			itemId: 'release-combobox',    
+			maxWidth: 400,
+			fieldLabel: 'Release',
+			labelAlign: 'right',
+			listeners: {
+				ready: function(combobox) {
+					console.log('releaseCombox event ready: -> _loadFeatures');
+					me._loadFeatures(combobox.getRecord());
+				},
+				select: function(combobox) {
+					console.log('releaseCombox event select: -> _loadFeatures');
+					me._loadFeatures(combobox.getRecord());
+				},          
+				scope: me
+			}
+        };
+        me.down('#pulldown-container').add(releaseComboBox);  
+		console.log('added release-combobox');
+	},
+
+    _loadFeatures: function(release) {
+		var me = this;
+		console.log('_loadFeatures entered');
+		me.selectedRelease = release;
+		console.log('selected release', release.data.Name);
+		
+		// if store exists, just load new data
+		if (me.featureStore) {
+			console.log('featureStore exists, just load new data');
+			me.featureStore.setFilter(me._getReleaseFilter(release.data.Name));
+			me.featureStore.load();
+			return;
+		}
+		console.log('new featureStore created');
+		me.featureStore = Ext.create('Rally.data.wsapi.Store', {   
+			xtype: 'rallywsapidatastore',
+			model: 'PortfolioItem/Feature',
+			autoLoad: true,
+			context: {
+				project : "/project/7048691823",
+				projectScopeUp : false,
+				projectScopeDown : true
+			},	
+			filters: me._getReleaseFilter(release.data.Name),	
+			listeners: {
+				load: function(store) {
+					console.log('featureStore event loaded: -> _selectFeature');
+					me._selectFeature(store);
+				},
+				scope: me                        
+			},
+			fetch: ['FormattedID','Name','UserStories','Release']
+		});
+	},
+
+    // create and load feature pulldown 
+    _selectFeature: function(featureStore) {
+        var me = this;
+		console.log('_selectFeature entered');
+
+		if (me.featureComboBox) { 
+			console.log('featureCombobox exists');
+			//console.log(me.featureComboBox);
+			// !!!! todo !!!!! hier noch irgendeine update funktion, um event ready: zu provozieren
+			//me.featureComboBox.update(featureStore);
+			return;
+		}
+		
+		me.featureComboBox =  Ext.create('Rally.ui.combobox.ComboBox', {
+			xtype: 'rallycombobox',
+			itemId: 'feature-combobox',  
+			maxWidth: 400,
+			fieldLabel: 'Feature',
+			labelAlign: 'right',
+			store: featureStore,
+			displayField: 'FormattedID',
+			listeners: {
+				ready: function(combobox) {
+					console.log('featureCombobox event ready: -> _loadStories');
+					me.selectedFeature = combobox.getRecord();
+					me._loadStories(me.selectedFeature);
+				},
+				select: function(combobox) {
+					console.log('featureCombox event select: -> _loadStories');
+					me.selectedFeature = combobox.getRecord();
+					me._loadStories(me.selectedFeature);
+				},
+				scope: me
+			}
+        });
+        me.down('#pulldown-container').add(me.featureComboBox); 
+		console.log('added feature-combobox');
+
+		me.storyNameFilterTextField = Ext.create('Rally.ui.TextField', {
+			xtype: 'rallytextfield',
+			itemId: 'storyNameFilter-TextField',     
+			width: 400,
+			fieldLabel: 'US Name contains:'
+		});
+        me.down('#textfield-container').add(me.storyNameFilterTextField); 
+		console.log('added storyNameFilter-TextField');
+		
+		me.setFilterButton = {
+			xtype: 'rallybutton',
+			itemId: 'setfilter-button',     
+			text: 'Apply US Filter',
+			region: 'center',
+			handler: function() {
+				for (var idx = 0; idx < me.storyGridSelectionCheckBoxes.store.data.items.length; idx++) {
+					if (me.storyGridSelectionCheckBoxes.store.data.items[idx].data.Name.toUpperCase().indexOf(me.storyNameFilterTextField.getValue().toUpperCase()) < 0) {
+						if (me.storyGridSelectionCheckBoxes.isSelected(idx)) {
+							me.storyGridSelectionCheckBoxes.deselect(idx);
+						} 
+					}
+				}
+			},
+			scope: me
+		};
+        me.down('#button-container').add(me.setFilterButton); 
+		console.log('added setfilter-button');
+		
+		me.printButton = {
+			xtype: 'rallybutton',
+			itemId: 'print-button',     
+			text: 'Generate Story Cards',
+			region: 'center',
+			handler: function() {
+				me._printCards();
+			},
+			scope: me
+		};
+        me.down('#button-container').add(me.printButton); 
+		console.log('added print-button');
+	},
+
+	 _loadStories: function(feature) {
+		var me = this;
+		console.log('_loadStories entered');
+		me.selectedFeature = feature;
+		console.log('selected feature', feature.data.FormattedID);
+
+		if (me.storyStore) {
+			console.log('storyStore exists, just load new data');
+			me.storyStore.setFilter(me._getFeatureFilter(feature.data.FormattedID));
+			me.storyStore.load();
+			return;
+		}
+
+		console.log('new storyStore created');
+		me.storyStore = Ext.create('Rally.data.wsapi.Store', {
+			model: 'User Story',
+			autoLoad: true,
+			pageSize: 1000,
+			filters: me._getFeatureFilter(feature.data.FormattedID),	
+			context: {
+				project : "/project/7048691823",
+				projectScopeUp : false,
+				projectScopeDown : true
+			},	
+			listeners: {
+				load: function(store) {
+					console.log('storyStore event load: (does nothing if storyGrid exists)');
+					if (!me.storyGrid) {
+						me._createGrid(store);
+					}
+				},
+				scope: me                        
+			},
+			fetch: ["FormattedID", "Feature", "Project", "Name", "Owner", "Description", "PlanEstimate"]
+		});
+	},
+	
+    // Create and show the grid of user stories
+    _createGrid: function(storyStore) {
+		var me = this;
+
+		me.storyGridSelectionCheckBoxes = Ext.create('Ext.selection.CheckboxModel', {
+			injectCheckbox: 1,
+			allowDeselect: true,
+			pruneRemoved: true,
+			mode: 'MULTI' /*,
+			listeners: {
+				selectionchange: function( model, selected ) {
+					//console.log('Grid selectionchange: event');
+				},
+				scope: me
+			}*/
+		});
+
+		me.storyGrid = {
+			xtype: 'rallygrid',
+			itemId: 'story-grid',
+			store: storyStore,
+			selModel: me.storyGridSelectionCheckBoxes,
+			columnCfgs: [         
+				'FormattedID', 'Name', 'Owner' 
+			],
+			listeners: {
+				boxready: function() {
+					console.log('storyGrid boxready: event');
+					me.storyGridSelectionCheckBoxes.selectAll();
+				},
+				load: function() {
+					console.log('storyGrid load: event');
+					me.storyGridSelectionCheckBoxes.selectAll();
+				},
+				scope: me
+			}
+		};
+
+		me.add(me.storyGrid);
+    },
+
+	_getReleaseFilter: function(releaseName) {
+		var releaseFilter = Ext.create('Rally.data.wsapi.Filter', {
+			property: 'Release.Name',
+			operator: '=',
+			value: releaseName
+		});
+		return releaseFilter;
+	},
+
+	_getFeatureFilter: function(featureFormattedID) {
+		var featureFilter = Ext.create('Rally.data.wsapi.Filter', {
+			property: 'Feature.FormattedID',
+			operator: '=',
+			value: featureFormattedID
+		});
+		return featureFilter;
+	},
+
+	getOptions: function() {
+		return [
+			this.getPrintMenuOption({title: 'Print Story Cards App'}) //from printable mixin
+		];
+	},
+
+	_printCards: function() {
+		var me = this;
+
+		if (me.storyGridSelectionCheckBoxes.selected.length === 0) {
+			Rally.ui.notify.Notifier.showWarning({message: 'No stories to print'});
+			return;
+		}
+		me.removeAll();
+
+		var printCardHtml = '';
+		console.log('_printCards entered');
+		me.add({
+			xtype: 'container',
+			itemId: 'cards'
+		});
+
+		me.down('#cards').getEl().setHTML('');
+		_.each(me.storyGridSelectionCheckBoxes.selected.items, function(record, idx) {
+			printCardHtml += Ext.create('Rally.apps.printcards.PrintCard').tpl.apply(record.data);
+			if (idx%4 === 3) {
+				printCardHtml += '<div class="pb"></div>';
+			}
+		}, me);
+		Ext.DomHelper.insertHtml('beforeEnd', me.down('#cards').getEl().dom, printCardHtml);
+
+		if(Rally.BrowserTest) {
+			Rally.BrowserTest.publishComponentReady(me);
+		}
+	}
+});
+                (function() {
+    var Ext = window.Ext4 || window.Ext;
+
+    Ext.define('Rally.apps.printcards.PrintCard', {
+        extend: 'Ext.Component',
+        alias: 'widget.printcard',
+        tpl: Ext.create('Ext.XTemplate', '<tpl><div class="artifact">' +
+            '<span class="featureFormattedid">{Feature.FormattedID}</span>' +
+            '<span class="planestimate">{[this.getEstimate(values)]}</span></br>' +
+            '<span class="featureName">{Feature.Name}</span>' +
+            '<div class="content">' +
+            '<div class="storyName">{Name}</div>' +
+            '</div>' +
+            '<span class="usandproject">{[this.getUsAndProject(values)]}</span>' +
+            '</div></tpl>', {
+                // Tasks have Estimate(s), Stories have PlanEstimate(s)
+                getEstimate: function(values) {
+                    return values.Estimate || values.PlanEstimate || 'None';
+                },
+                getUsAndProject: function(values) {
+                    var str = values.FormattedID + "</br>" + values.Project.Name;
+                    return str;
+                }
+            }
+        )
+    });
+})();
+
+
+            Rally.launchApp('CustomApp', {
+                name:"UserStoryPrinter",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+
+    <style type="text/css">
+        .app {
+  /* Add app styles here */
+}
+
+    </style>
+
+    <style type="text/css">
+        .printcards {
+  margin: 5px;
+  width: 100%;
+  height: 100%;
+}
+.printcards html {
+  background-color: #fff;
+  color: #000;
+  font: 13pt / 1.26;
+  margin: 0;
+  padding: 0;
+}
+.printcards .header {
+  margin: 5px;
+}
+.printcards .storyName {
+  font: 13pt NotoSans, Helvetica, Arial;
+  margin: 0.25em auto 0 auto;
+  padding-top: 1.5em;
+  text-align: center;
+  padding-left: 1.0em;
+  padding-right: 1.0em;
+  overflow-y: hidden;
+  width: 100%;
+  word-wrap: break-word;
+}
+.printcards .featureFormattedid {
+  float: left;
+  font: 13pt / 1.26 NotoSans, Helvetica, Arial;
+  margin-left: 0.25em;
+  margin-top: 0.3em;
+}
+.printcards .usandproject {
+  float: left;
+  font: 13pt / 1.26 NotoSans, Helvetica, Arial;
+  margin-left: 0.25em;
+}
+.printcards .featureName {
+  float: left;
+  font: 10pt / 1.26 NotoSans, Helvetica, Arial;
+  margin-left: 0.25em;
+  margin-top: 0.3em;
+  height: 21px;
+  width: 4.3in;
+  overflow: hidden;
+}
+.printcards .planestimate {
+  float: right;
+  font: 13pt / 1.26 NotoSans, Helvetica, Arial;
+  margin-right: 0.3em;
+  margin-top: 0.3em;
+}
+.printcards .content {
+  height: 2.2in;
+  overflow: hidden;
+  width: 4.3in;
+  color: black;
+  padding-left: 4px;
+  padding-right: 8px;
+}
+.printcards .featureBox {
+  border: 1px;
+  border-bottom-style: solid;
+  height: 21px;
+  width: 4.3in;
+  overflow: hidden;
+}
+.printcards body {
+  background-color: #fff;
+  margin: 0;
+  padding: 0;
+}
+.printcards .cb {
+  clear: both;
+}
+.printcards .artifact {
+  background-color: #fff;
+  border: 2px solid #000;
+  float: left;
+  height: 3.2in;
+  margin: 0.1in 0.1in 0.1in 0.1in;
+  position: relative;
+  overflow: hidden;
+  width: 4.3in;
+}
+/* Set app size when printing
+/* Set overflow to hidden on app so page breaks
+/*actually work when printing on Chrome and Safari */
+.print-page .printcards {
+  width: 920px !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+.print-page .printcards .header {
+  display: none;
+}
+@media print {
+  .printcards .pb {
+    page-break-after: always;
+    clear: both;
+  }
+}
+
+    </style>
+</head>
+<body>
+</body>
+</html>
