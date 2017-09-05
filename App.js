@@ -149,11 +149,9 @@ Ext.define('CustomApp', {
 		
 		function filterStories(callBack) {
 			var filter = me.storyNameFilterTextField.getValue().toUpperCase();
-			//var len = me.storyGridSelectionCheckBoxes.store.data.items.length;
 			var len = me.storyStore.data.items.length;
 			
 			for (var idx = 0; idx < len; idx++) {
-				//if (me.storyGridSelectionCheckBoxes.store.data.items[idx].data.Name.toUpperCase().indexOf(filter) < 0) {
 				if (me.storyStore.data.items[idx].data.Name.toUpperCase().indexOf(filter) < 0) {
 					if (me.storyGridSelectionCheckBoxes.isSelected(idx)) {
 						me.storyGridSelectionCheckBoxes.deselect(idx, true);
