@@ -158,7 +158,7 @@ Ext.define('CustomApp', {
 					} 
 				}
 			}
-		    if (callBack) callBack();
+		    if (callBack) { callBack(); }
 		}
 
 		me.setFilterButton = {

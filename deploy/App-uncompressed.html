@@ -156,19 +156,35 @@
         me.down('#textfield-container').add(me.storyNameFilterTextField); 
 		console.log('added storyNameFilter-TextField');
 		
+		function filterStories(callBack) {
+			var filter = me.storyNameFilterTextField.getValue().toUpperCase();
+			var len = me.storyStore.data.items.length;
+			
+			for (var idx = 0; idx < len; idx++) {
+				if (me.storyStore.data.items[idx].data.Name.toUpperCase().indexOf(filter) < 0) {
+					if (me.storyGridSelectionCheckBoxes.isSelected(idx)) {
+						me.storyGridSelectionCheckBoxes.deselect(idx, true);
+					} 
+				}
+			}
+		    if (callBack) { callBack(); }
+		}
+
 		me.setFilterButton = {
 			xtype: 'rallybutton',
 			itemId: 'setfilter-button',     
 			text: 'Apply US Filter',
 			region: 'center',
 			handler: function() {
-				for (var idx = 0; idx < me.storyGridSelectionCheckBoxes.store.data.items.length; idx++) {
-					if (me.storyGridSelectionCheckBoxes.store.data.items[idx].data.Name.toUpperCase().indexOf(me.storyNameFilterTextField.getValue().toUpperCase()) < 0) {
-						if (me.storyGridSelectionCheckBoxes.isSelected(idx)) {
-							me.storyGridSelectionCheckBoxes.deselect(idx);
-						} 
-					}
-				}
+				console.log('store data', me.storyStore.data);
+				console.log('checkboxes', me.storyGridSelectionCheckBoxes);
+
+				me.down('#button-container').setLoading('Please wait...'); 
+				
+				// without defer filterStories() lets the browser not enough breath to display .setLoading('Please wait...')
+				Ext.Function.defer(function() {
+					filterStories(function() { me.down('#button-container').setLoading(false); });
+		        }, 10);
 			},
 			scope: me
 		};
@@ -189,6 +205,7 @@
 		console.log('added print-button');
 	},
 
+	
 	 _loadStories: function(feature) {
 		var me = this;
 		console.log('_loadStories entered');
@@ -234,10 +251,10 @@
 			injectCheckbox: 1,
 			allowDeselect: true,
 			pruneRemoved: true,
-			mode: 'MULTI' /*,
+			mode: 'MULTI'/*,
 			listeners: {
 				selectionchange: function( model, selected ) {
-					//console.log('Grid selectionchange: event');
+					console.log('Grid selectionchange: event');
 				},
 				scope: me
 			}*/
@@ -246,6 +263,7 @@
 		me.storyGrid = {
 			xtype: 'rallygrid',
 			itemId: 'story-grid',
+			id: 'grid',
 			store: storyStore,
 			selModel: me.storyGridSelectionCheckBoxes,
 			columnCfgs: [         
