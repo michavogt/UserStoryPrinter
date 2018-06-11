@@ -12,6 +12,8 @@
             '<div class="storyName">{Name}</div>' +
             '</div>' +
             '<span class="usandproject">{[this.getUsAndProject(values)]}</span>' +
+            //'<div class="us">{[this.getUs(values)]}</div><br>' +
+            //'<div class="project">{[this.getProject(values)]}</div>' +
             '</div></tpl>', {
                 // Tasks have Estimate(s), Stories have PlanEstimate(s)
                 getEstimate: function(values) {
@@ -19,6 +21,14 @@
                 },
                 getUsAndProject: function(values) {
                     var str = values.FormattedID + "</br>" + values.Project.Name;
+                    return str;
+                },
+                getUs: function(values) {
+                    var str = values.FormattedID;
+                    return str;
+                },
+                getProject: function(values) {
+                    var str = values.Project.Name;
                     return str;
                 }
             }

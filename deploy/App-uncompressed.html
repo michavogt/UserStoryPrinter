@@ -353,6 +353,8 @@
             '<div class="storyName">{Name}</div>' +
             '</div>' +
             '<span class="usandproject">{[this.getUsAndProject(values)]}</span>' +
+            //'<div class="us">{[this.getUs(values)]}</div><br>' +
+            //'<div class="project">{[this.getProject(values)]}</div>' +
             '</div></tpl>', {
                 // Tasks have Estimate(s), Stories have PlanEstimate(s)
                 getEstimate: function(values) {
@@ -360,6 +362,14 @@
                 },
                 getUsAndProject: function(values) {
                     var str = values.FormattedID + "</br>" + values.Project.Name;
+                    return str;
+                },
+                getUs: function(values) {
+                    var str = values.FormattedID;
+                    return str;
+                },
+                getProject: function(values) {
+                    var str = values.Project.Name;
                     return str;
                 }
             }
@@ -370,7 +380,8 @@
 
             Rally.launchApp('CustomApp', {
                 name:"UserStoryPrinter",
-	            parentRepos:""
+                parentRepos:"",
+                version:"0.1.1"
             });
 
         });
@@ -402,7 +413,8 @@
   margin: 5px;
 }
 .printcards .storyName {
-  font: 13pt NotoSans, Helvetica, Arial;
+  font: 18pt NotoSans, Helvetica, Arial;
+  font-weight: bold;
   margin: 0.25em auto 0 auto;
   padding-top: 1.5em;
   text-align: center;
@@ -414,11 +426,23 @@
 }
 .printcards .featureFormattedid {
   float: left;
-  font: 13pt / 1.26 NotoSans, Helvetica, Arial;
+  font: 18pt / 1.26 NotoSans, Helvetica, Arial;
+  font-weight: bold;
   margin-left: 0.25em;
   margin-top: 0.3em;
 }
 .printcards .usandproject {
+  float: left;
+  font: 18pt / 1.26 NotoSans, Helvetica, Arial;
+  font-weight: bold;
+  margin-left: 0.25em;
+}
+.printcards .us {
+  float: left;
+  font: 18pt / 1.26 NotoSans, Helvetica, Arial;
+  margin-left: 0.25em;
+}
+.printcards .project {
   float: left;
   font: 13pt / 1.26 NotoSans, Helvetica, Arial;
   margin-left: 0.25em;
@@ -434,12 +458,13 @@
 }
 .printcards .planestimate {
   float: right;
-  font: 13pt / 1.26 NotoSans, Helvetica, Arial;
+  font: 18pt / 1.26 NotoSans, Helvetica, Arial;
+  font-weight: bold;
   margin-right: 0.3em;
   margin-top: 0.3em;
 }
 .printcards .content {
-  height: 2.2in;
+  height: 1.8in;
   overflow: hidden;
   width: 4.3in;
   color: black;
